@@ -1,0 +1,428 @@
+#include "parser.hpp"
+#include "address.hpp"
+#include "executor.hpp"
+#include <vector>
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <algorithm>
+
+
+
+using namespace std;
+
+
+void helper_setUndoState(stack<pair<vector<string>, int>> &undo_stack, stack<pair<vector<string>, int>> &redo_stack, vector<string>lines, int dot){
+    undo_stack.push({lines, dot});
+    while (!redo_stack.empty()) redo_stack.pop(); // clear redo history
+}
+
+
+bool Executor::cmd_put_register(Address a1, 
+        vector<string> &lines, 
+        int &dot, 
+        bool &modified, 
+        char reg , 
+        bool after) {
+    if (registers.find(reg) == registers.end() || registers[reg].empty())
+        return false;
+
+    int insert_idx = (a1.number == 0 ? dot : a1.number);
+    if (after) insert_idx++; // put after
+
+    if (insert_idx < 0 || insert_idx > (int)lines.size())
+        return false;
+
+    lines.insert(lines.begin() + insert_idx, 
+            registers[reg].begin(), 
+            registers[reg].end());
+
+    dot = insert_idx + (int)registers[reg].size();
+    modified = true;
+    return true;
+}
+
+bool Executor::cmd_yank(Address a1, Address a2, 
+        vector<string> &lines, 
+        char reg) {
+    if (lines.empty()) return false;
+    if (a1.number < 1 || a2.number < a1.number || a2.number > (int)lines.size())
+        return false;
+
+    int begin = a1.number - 1;
+    int end = a2.number - 1;
+
+    for (auto &t:marks){
+        cout<<t.first<<endl;
+    }
+    registers[reg].clear();
+    for (int i = begin; i <= end; i++) {
+        registers[reg].push_back(lines[i]);
+    }
+    dot = a2.number;
+    return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Delete lines between a1 and a2 (inclusive).
+ */
+bool Executor::cmd_delete(
+        Address a1,
+        Address a2,
+        vector<string> &lines,
+        int &dot,
+        bool &modified
+        ) {
+    if (lines.empty()) return false;
+
+    if (a1.number < 1 || a2.number < a1.number || a2.number > (int)lines.size())
+        return false;
+
+
+
+    auto start = lines.begin() + (a1.number - 1);
+    auto end = lines.begin() + a2.number;
+
+    lines.erase(start, end);
+
+    if (a1.number <= (int)lines.size())
+        dot = a1.number;
+    else
+        dot = lines.empty() ? 0 : (int)lines.size();
+
+    modified = true;
+    return true;
+}
+
+/**
+ * Append lines after address a1.
+ */
+bool Executor::cmd_append(
+        Address a1,
+        vector<string> &lines,
+        int &dot,
+        bool &modified
+        ) {
+    string input;
+    int insert_idx = (a1.number == 0 ? 0 : a1.number);
+
+    if (insert_idx < 0 || insert_idx > (int)lines.size())
+        return false;
+
+    while (true) {
+        if (!getline(cin, input)) break;
+        if (input == ".") break;
+
+        lines.insert(next(lines.begin(), insert_idx), input);
+        modified = true;
+        insert_idx++;
+    }
+
+    dot = insert_idx;
+    return true;
+}
+
+/**
+ * Insert before address a1.
+ */
+bool Executor::cmd_insert(
+        Address a1,
+        vector<string> &lines,
+        int &dot,
+        bool &modified
+        ) {
+    a1.number = max(0, a1.number -1);
+    return cmd_append(a1, lines, dot, modified);
+}
+
+/**
+ * Write lines between a1 and a2 to file.
+ */
+bool Executor::cmd_write(
+        Address a1,
+        Address a2,
+        vector<string> &lines,
+        string &params,
+        string &filename,
+        bool &modified
+        ) {
+    if (lines.empty()) return false;
+
+    string local_fname;
+    if (!params.empty()) {
+        filename = params;
+        local_fname = filename;
+    } else if (!filename.empty()) {
+        local_fname = filename;
+    } else {
+        return false;
+    }
+
+    ofstream file(local_fname);
+    if (!file.is_open())
+        return false;
+
+    if (a1.number > a2.number) return false;
+
+    int begin = (a1.type == AddressType::NONE ? 1 : a1.number);
+    int end = (a2.type == AddressType::NONE ? (int)lines.size() : a2.number);
+
+    begin = max(1, begin);
+    end = min(end, (int)lines.size());
+
+    for (int i = begin - 1; i < end; i++) {
+        file << lines.at(i) << "\n";
+    }
+
+    cout << local_fname << endl;
+    file.close();
+    modified = false;
+    return true;
+}
+
+/**
+ * Print lines between a1 and a2.
+ */
+bool Executor::cmd_put(
+        Address a1,
+        Address a2,
+        vector<string> &lines,
+        int &dot
+        ) {
+    if (lines.empty()) return true;
+
+    if (a1.number == 0 && a2.number == 0) {
+        if (dot >= 1 && dot <= (int)lines.size())
+            cout << lines.at(dot - 1) << endl;
+    } else {
+        int begin = max(0, a1.number - 1);
+        int end = (a2.number == 0 ? (int)lines.size() : a2.number) - 1;
+        end = min(end, (int)lines.size() - 1);
+
+        for (int i = begin; i <= end && i < (int)lines.size(); i++)
+            cout << lines.at(i) << endl;
+
+        dot = end + 1;
+    }
+    return true;
+}
+
+
+bool Executor::cmd_undo(vector<string> &lines){
+    if (!undo_stack.empty()) {
+        redo_stack.push({lines, dot}); // save current state for redo
+        auto prev = undo_stack.top();
+        undo_stack.pop();
+
+        lines = prev.first;
+        dot = prev.second;
+        modified = true;
+        return true;
+    }
+    return false;
+}
+
+
+
+bool Executor::cmd_redo(vector<string>&lines){
+
+
+    if (!redo_stack.empty()) {
+        undo_stack.push({lines, dot}); // save current state for undo
+        auto next = redo_stack.top();
+        redo_stack.pop();
+
+        lines = next.first;
+        dot = next.second;
+        modified = true;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Print lines with line numbers.
+ */
+bool Executor::cmd_put_with_numbers(
+        Address a1,
+        Address a2,
+        vector<string> &lines,
+        int &dot
+        ) {
+    if (lines.empty()) return true;
+
+    if (a1.number == 0 && a2.number == 0) {
+        if (dot >= 1 && dot <= (int)lines.size())
+            cout << dot << "\t" << lines.at(dot - 1) << endl;
+    } else {
+        int begin = max(0, a1.number - 1);
+        int end = (a2.number == 0 ? (int)lines.size() : a2.number) - 1;
+        end = min(end, (int)lines.size() - 1);
+
+        for (int i = begin; i <= end && i < (int)lines.size(); i++)
+            cout << i + 1 << "\t" << lines.at(i) << endl;
+
+        dot = end + 1;
+    }
+    return true;
+}
+
+/**
+ * Helper: check if address is numerical.
+ */
+bool isNumericalAddress(Address a) {
+    return a.type == AddressType::NUMBER ||
+        a.type == AddressType::CURRENT ||
+        a.type == AddressType::RELATIVE ||
+        a.type == AddressType::LAST;
+}
+
+/**
+ * Execute a command.
+ */
+bool Executor::executeCommands(
+        Address a1,
+        Address a2,
+        char c,
+        vector<string> &lines,
+        string &params
+        ) {
+    if (c == '\0') c = 'n';
+
+    if (dot == 0 && !lines.empty()) dot = 1;
+
+    // Resolve addresses
+    if (a1.type == AddressType::CURRENT) a1.number = dot;
+    if (a2.type == AddressType::CURRENT) a2.number = dot;
+    if (a1.type == AddressType::LAST) a1.number = (int)lines.size();
+    if (a2.type == AddressType::LAST) a2.number = (int)lines.size();
+    if (a1.type == AddressType::RELATIVE) a1.number += dot;
+    if (a2.type == AddressType::RELATIVE) a2.number += dot;
+    if (a1.type == AddressType::MARK) {
+        if (marks.find(a1.extra) == marks.end()) return false;
+        a1.number = marks[a1.extra];
+    }
+    if (a2.type == AddressType::MARK) {
+        if (marks.find(a2.extra) == marks.end()) return false;
+        a2.number = marks[a2.extra];
+    }
+
+    if ((a1.type == AddressType::LAST && lines.empty()) ||
+            (a2.type == AddressType::LAST && lines.empty())) {
+        return false;
+    }
+
+    if (isNumericalAddress(a1) &&
+            (a2.type == AddressType::NONE ||
+             (a2.type == AddressType::NUMBER && a2.number == 0)))
+        a2.number = a1.number;
+
+    if (debug)
+        Parser::displayCommand(a1, a2, c, params);
+
+    switch (c) {
+        case '#':
+            return true;
+
+        case 'd':
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            return cmd_delete(a1, a2, lines, dot, modified);
+
+        case 'a':
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            return cmd_append(a1, lines, dot, modified);
+
+        case 'i':
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            return cmd_insert(a1, lines, dot, modified);
+
+        case 'c':
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            return cmd_delete(a1, a2, lines, dot, modified) &&
+                cmd_insert(a1, lines, dot, modified);
+
+        case 'w':
+            return cmd_write(a1, a2, lines, params, filename, modified);
+
+        case 'o':
+            return cmd_put(a1, a2, lines, dot);
+
+        case 'n':
+            return cmd_put_with_numbers(a1, a2, lines, dot);
+
+        case 'u':
+            return cmd_undo(lines);
+
+        case 'r':
+            return cmd_redo(lines);
+
+        case '=':
+            cout << dot << endl;
+            break;
+
+        case 'q':
+            if (!modified)
+                exit(0);
+            else
+                return false;
+            break;
+        case 'Q':
+            exit(0);
+            break;
+
+        case 'm':
+            if (!params.empty() && isalpha(params[0])){
+                marks[string(1, params[0])] = dot;
+                return true;
+            }
+            return false;
+            break;
+
+
+        case 'y': // yank
+            if (!params.empty() && isalpha(params[0]))
+                return cmd_yank(a1, a2, lines, (unsigned char)params[0]);
+            return cmd_yank(a1, a2, lines);
+
+        case 'p': // put after
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            if (params.empty())
+                return cmd_put_register(a1, lines, dot, modified, '"', true);
+            return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], true);
+            
+
+        case 'P': // put before
+            helper_setUndoState(undo_stack, redo_stack, lines, dot);
+            if (params.empty())
+                return cmd_put_register(a1, lines, dot, modified, '"', false);
+            return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], false);
+        default:
+            return false;
+    }
+    return true;
+}
