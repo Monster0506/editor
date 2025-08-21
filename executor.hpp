@@ -1,5 +1,6 @@
 #pragma once
 #include "address.hpp"
+#include "command.hpp"
 #include <vector>
 #include <stack>
 #include <unordered_map>
@@ -26,13 +27,15 @@ class Executor{
 
 
 
-        bool executeCommands(Address a1, Address a2, char c, vector<string> &lines, string &params);
+        // bool executeCommands(Address a1, Address a2, char c, vector<string> &lines, string &params);
+        bool executeCommands(Command &c, vector<string> &lines);
         Executor() {}
         Executor(bool debug_) : debug(debug_) {}
         Executor(const string &fname) : filename(fname) {}
         Executor(const string &fname, bool debug_) : debug(debug_), filename(fname) {}
 
         bool cmd_delete(Address a1, Address a2, vector<string> &lines, int &dot, bool &modified);
+        bool cmd_delete(Command c, vector<string> &lines, int &dot, bool &modified);
         bool cmd_append(Address a1, vector<string> &lines, int &dot, bool &modified);
         bool cmd_insert(Address a1, vector<string> &lines, int &dot, bool &modified);
         bool cmd_write(Address a1, Address a2, vector<string> &lines, string &params, string &filename, bool &modified) ;

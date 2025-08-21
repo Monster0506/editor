@@ -87,6 +87,39 @@ bool Executor::cmd_yank(Address a1, Address a2,
 /**
  * Delete lines between a1 and a2 (inclusive).
  */
+bool Executor::cmd_delete(Command c, vector<string> &lines, int &dot, bool &modified){
+    if (lines.empty()) return false;
+
+
+    if (c.a1.number < 1 || c.a2.number < c.a1.number || c.a2.number > (int)lines.size())
+        return false;
+    helper_UpdateMarksAfterDeletion(c.a1.number, c.a2.number, marks);
+
+
+    registers['_'].clear();
+    registers['"'].clear();
+    for (int i = c.a1.number -1; i<c.a2.number; i++){
+        registers['_'].push_back(lines[i]);
+        registers['"'].push_back(lines[i]);
+    }
+
+
+    auto start = lines.begin() + (c.a1.number - 1);
+    auto end = lines.begin() + c.a2.number;
+
+    lines.erase(start, end);
+
+    if (c.a1.number <= (int)lines.size())
+        dot = c.a1.number;
+    else
+        dot = lines.empty() ? 0 : (int)lines.size();
+
+    modified = true;
+    return true;
+}
+/**
+ * Delete lines between a1 and a2 (inclusive).
+ */
 bool Executor::cmd_delete(
         Address a1,
         Address a2,
@@ -300,7 +333,7 @@ bool Executor::cmd_put_with_numbers(
 /**
  * Helper: check if address is numerical.
  */
-bool isNumericalAddress(Address a) {
+bool aisNumericalAddress(Address a) {
     return a.type == AddressType::NUMBER ||
         a.type == AddressType::CURRENT ||
         a.type == AddressType::RELATIVE ||
@@ -311,82 +344,80 @@ bool isNumericalAddress(Address a) {
  * Execute a command.
  */
 bool Executor::executeCommands(
-        Address a1,
-        Address a2,
-        char c,
-        vector<string> &lines,
-        string &params
+        Command &c,
+        vector< string> &lines
         ) {
-    if (c == '\0')
+
+    if (c.command == '\0')
     {
-        if (a1.type == AddressType::MARK && a2.type==AddressType::NONE){
+        if (c.a1.type == AddressType::MARK && c.a2.type==AddressType::NONE){
             // Allow mark command in format '[char]
-            c='\''; 
-            params=a1.extra;
+            c.command='\''; 
+            c.params=c.a1.extra;
         }
-        else c = 'n';
+        else c.command = 'n';
     }
 
     if (dot == 0 && !lines.empty()) dot = 1;
 
     // Resolve addresses
-    if (a1.type == AddressType::CURRENT) a1.number = dot;
-    if (a2.type == AddressType::CURRENT) a2.number = dot;
-    if (a1.type == AddressType::LAST) a1.number = (int)lines.size();
-    if (a2.type == AddressType::LAST) a2.number = (int)lines.size();
-    if (a1.type == AddressType::RELATIVE) a1.number += dot;
-    if (a2.type == AddressType::RELATIVE) a2.number += dot;
-    if (a1.type == AddressType::MARK) {
-        if (marks.find(a1.extra) == marks.end()) return false;
-        a1.number = marks[a1.extra];
+    if (c.a1.type == AddressType::CURRENT) c.a1.number = dot;
+    if (c.a2.type == AddressType::CURRENT) c.a2.number = dot;
+    if (c.a1.type == AddressType::LAST) c.a1.number = (int)lines.size();
+    if (c.a2.type == AddressType::LAST) c.a2.number = (int)lines.size();
+    if (c.a1.type == AddressType::RELATIVE) c.a1.number += dot;
+    if (c.a2.type == AddressType::RELATIVE) c.a2.number += dot;
+    if (c.a1.type == AddressType::MARK) {
+        if (marks.find(c.a1.extra) == marks.end()) return false;
+        c.a1.number = marks[c.a1.extra];
     }
-    if (a2.type == AddressType::MARK) {
-        if (marks.find(a2.extra) == marks.end()) return false;
-        a2.number = marks[a2.extra];
+    if (c.a2.type == AddressType::MARK) {
+        if (marks.find(c.a2.extra) == marks.end()) return false;
+        c.a2.number = marks[c.a2.extra];
     }
 
-    if ((a1.type == AddressType::LAST && lines.empty()) ||
-            (a2.type == AddressType::LAST && lines.empty())) {
+    if ((c.a1.type == AddressType::LAST && lines.empty()) ||
+            (c.a2.type == AddressType::LAST && lines.empty())) {
         return false;
     }
 
-    if (isNumericalAddress(a1) &&
-            (a2.type == AddressType::NONE ||
-             (a2.type == AddressType::NUMBER && a2.number == 0)))
-        a2.number = a1.number;
+    if (aisNumericalAddress(c.a1) &&
+            (c.a2.type == AddressType::NONE ||
+             (c.a2.type == AddressType::NUMBER && c.a2.number == 0)))
+        c.a2.number = c.a1.number;
 
     if (debug)
-        Parser::displayCommand(a1, a2, c, params);
+        Parser::displayCommand(c.a1, c.a2, c.command, c.params);
 
-    switch (c) {
+    switch (c.command) {
         case '#':
             return true;
 
         case 'd':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_delete(a1, a2, lines, dot, modified);
+            return cmd_delete(c, lines, dot, modified);
 
         case 'a':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_append(a1, lines, dot, modified);
+            return cmd_append(c.a1, lines, dot, modified);
 
         case 'i':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_insert(a1, lines, dot, modified);
+            return cmd_insert(c.a1, lines, dot, modified);
 
         case 'c':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_delete(a1, a2, lines, dot, modified) &&
-                cmd_insert(a1, lines, dot, modified);
+            return cmd_delete(c.a1, c.a2, lines, dot, modified) &&
+                cmd_insert(c.a1, lines, dot, modified);
 
         case 'w':
-            return cmd_write(a1, a2, lines, params, filename, modified);
+            return cmd_write(c.a1, c.a2, lines, c.params, filename, modified);
 
         case 'o':
-            return cmd_put(a1, a2, lines, dot);
+            return cmd_put(c.a1, c.a2, lines, dot);
 
         case 'n':
-            return cmd_put_with_numbers(a1, a2, lines, dot);
+            return cmd_put_with_numbers(c.a1, c.a2, lines, dot);
 
         case 'u':
             return cmd_undo(lines);
@@ -409,8 +440,8 @@ bool Executor::executeCommands(
             break;
 
         case 'm':
-            if (!params.empty() && isalpha(params[0])){
-                marks[string(1, params[0])] = dot;
+            if (!c.params.empty() && isalpha(c.params[0])){
+                marks[string(1, c.params[0])] = dot;
                 return true;
             }
             return false;
@@ -418,25 +449,25 @@ bool Executor::executeCommands(
 
 
         case 'y':
-            if (!params.empty() && isalpha(params[0]))
-                return cmd_yank(a1, a2, lines, (unsigned char)params[0]);
-            return cmd_yank(a1, a2, lines);
+            if (!c.params.empty() && isalpha(c.params[0]))
+                return cmd_yank(c.a1, c.a2, lines, (unsigned char)c.params[0]);
+            return cmd_yank(c.a1, c.a2, lines);
 
         case 'p': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            if (params.empty())
-                return cmd_put_register(a1, lines, dot, modified, '"', true);
-            return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], true);
+            if (c.params.empty())
+                return cmd_put_register(c.a1, lines, dot, modified, '"', true);
+            return cmd_put_register(c.a1, lines, dot, modified, (unsigned char)c.params[0], true);
 
         case 'P': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            if (params.empty())
-                return cmd_put_register(a1, lines, dot, modified, '"', false);
-            return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], false);
+            if (c.params.empty())
+                return cmd_put_register(c.a1, lines, dot, modified, '"', false);
+            return cmd_put_register(c.a1, lines, dot, modified, (unsigned char)c.params[0], false);
 
         case '\'':
-            if (!params.empty()){
-                string mark(1, params[0]);
+            if (!c.params.empty()){
+                string mark(1, c.params[0]);
                 if (marks.find(mark) != marks.end()){
                     dot = marks.at(mark);
                     return true;

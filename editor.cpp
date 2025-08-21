@@ -37,22 +37,28 @@ int main(int argc, char **argv) {
         if (executor.debug)
             cout<<"* ";
         getline(cin>>ws, cmd);
-        
+
         if (!parser.parseCommand(cmd, a1, a2, c, params)){
             cout<<"bad parse"<<endl;
             cout<<"?"<<endl;
             continue;
         }
-        Command command = Command::build_command(c, a1, a2,  params, executor.dot, lines.size(), executor.marks);
-        cout<<"sucessfully built command! "<<endl<<command<<endl;
-
-
-
-        if (!executor.executeCommands(a1, a2, c, lines, params)){
-            cout<<"bad command"<<endl;
+        Command command;
+        try{
+            command= Command::build_command(c, a1, a2,  params, executor.dot, lines.size(), executor.marks);
+        }
+        catch (...){
+            cout<<"bad command construction"<<endl;
             cout<<"?"<<endl;
             continue;
-        };
+        }
+
+        if (!executor.executeCommandsc(command, lines)){
+            cout<<"bad command construction"<<endl;
+            cout<<"?"<<endl;
+            continue;
+        }
+
     }
     return 0;
 }
