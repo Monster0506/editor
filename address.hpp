@@ -14,18 +14,17 @@ enum class AddressType {
 
 // Pretty-print AddressType
 class Address {
-public:
+   public:
     AddressType type;
     int number;
-    string extra; // regex or mark name
+    string extra;  // regex or mark name
 
-    Address(): type(AddressType::NONE), number(0) {}
-    Address(AddressType type_): type(type_), number(0) {}
-    Address(AddressType type_, int number_): type(type_), number(number_) {}
-    Address(AddressType type_, const string &extra_): type(type_), number(0), extra(extra_) {}
+    Address() : type(AddressType::NONE), number(0) {}
+    Address(AddressType type_) : type(type_), number(0) {}
+    Address(AddressType type_, int number_) : type(type_), number(number_) {}
+    Address(AddressType type_, const string &extra_)
+        : type(type_), number(0), extra(extra_) {}
 };
-
-
 
 std::ostream &operator<<(std::ostream &os, AddressType t);
 std::ostream &operator<<(std::ostream &os, const Address &a);

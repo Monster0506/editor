@@ -5,17 +5,17 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
     if (pos >= s.size()) return false;
 
     char ch = s[pos];
-    if (ch == '.') { 
+    if (ch == '.') {
         addr = Address();
         addr.type = AddressType::CURRENT;
         pos++;
         return true;
-    } else if (ch == '$') { // last line
+    } else if (ch == '$') {  // last line
         addr = Address();
         addr.type = AddressType::LAST;
         pos++;
         return true;
-    } else if (isdigit(ch)) { // explicit number
+    } else if (isdigit(ch)) {  // explicit number
         int num = 0;
         while (pos < s.size() && isdigit((unsigned char)s[pos])) {
             num = num * 10 + (s[pos] - '0');
@@ -25,10 +25,10 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
         addr.type = AddressType::NUMBER;
         addr.number = num;
         return true;
-    } else if (ch == '+' || ch == '-') { // relative
+    } else if (ch == '+' || ch == '-') {  // relative
         char sign = ch;
         pos++;
-        int num = 1; // default offset
+        int num = 1;  // default offset
         if (pos < s.size() && isdigit((unsigned char)s[pos])) {
             num = 0;
             while (pos < s.size() && isdigit((unsigned char)s[pos])) {
@@ -41,7 +41,7 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
         addr.type = AddressType::RELATIVE;
         addr.number = num;
         return true;
-    } else if (ch == '/' || ch == '?') { // regex search
+    } else if (ch == '/' || ch == '?') {  // regex search
         char delim = ch;
         pos++;
         string re;
@@ -54,18 +54,18 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
             pos++;
         }
         if (pos < s.size() && s[pos] == delim) pos++;
-        if (delim == '/'){
+        if (delim == '/') {
             addr = Address();
-            addr.type =AddressType::REGEX_FWD;
+            addr.type = AddressType::REGEX_FWD;
             addr.extra = re;
-        }
-        else{
-            addr = Address();;
-            addr.type =AddressType::REGEX_BACK;
+        } else {
+            addr = Address();
+            ;
+            addr.type = AddressType::REGEX_BACK;
             addr.extra = re;
         }
         return true;
-    } else if (ch == '\'') { // mark
+    } else if (ch == '\'') {  // mark
         pos++;
         if (pos < s.size()) {
             string mark(1, s[pos]);
@@ -81,7 +81,8 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
     return false;
 }
 
-bool Parser::parseCommand(const string &cmd, Address &addr1, Address &addr2, char &c, string &params) {
+bool Parser::parseCommand(const string &cmd, Address &addr1, Address &addr2,
+                          char &c, string &params) {
     size_t pos = 0;
     addr1 = Address();
     addr2 = Address();
@@ -122,7 +123,7 @@ bool Parser::parseCommand(const string &cmd, Address &addr1, Address &addr2, cha
         c = cmd[pos];
         pos++;
     } else {
-        return true; 
+        return true;
     }
 
     while (pos < cmd.size() && isspace((unsigned char)cmd[pos])) pos++;
@@ -132,4 +133,3 @@ bool Parser::parseCommand(const string &cmd, Address &addr1, Address &addr2, cha
 
     return true;
 }
-
