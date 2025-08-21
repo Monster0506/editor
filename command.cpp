@@ -10,6 +10,8 @@ bool isNumericalAddress(Address a) {
 Command Command::build_command(char cmd, Address a1_, Address a2_, string &params_, int dot, int lines_size, unordered_map<string, int> &marks){
     Command result = Command();
 
+
+
     if (cmd == '\0')
     {
         if (a1_.type == AddressType::MARK && a2_.type==AddressType::NONE){
@@ -67,10 +69,11 @@ Command Command::build_command(char cmd, Address a1_, Address a2_, string &param
 
 
 ostream &operator<<(ostream &os, const Command &c) {
+os<<"addr1="<<c.a1<<" addr2="<<c.a2<<" command="<<c.command<<" params='"<<c.params<<"'";
 
-    os<<"---------COMMAND---------"<<endl;
-    os<<(c.a1)<<","<<(c.a2)<<c.command<<"{"<<c.params<<"}"<<endl;
-    os<<"-------------------------"<<endl;
+    // os<<"---------COMMAND---------"<<endl;
+    // os<<(c.a1)<<","<<(c.a2)<<c.command<<"{"<<c.params<<"}"<<endl;
+    // os<<"-------------------------"<<endl;
 
     return os;
 }
