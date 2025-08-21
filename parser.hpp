@@ -1,13 +1,14 @@
 #pragma once
 #include <iostream>
 #include "address.hpp"
+#include "command.hpp"
 using namespace std;
 class Parser{
     public:
-        static void displayCommand(Address a1, Address a2, char c, string params){
+        static void displayCommand(Command c){
 
             cout<<"---------COMMAND---------"<<endl;
-            cout<<(a1)<<","<<(a2)<<c<<"{"<<params<<"}"<<endl;
+            cout<<c<<endl;
             cout<<"-------------------------"<<endl;
         }
         static bool parseSingleAddress(const string &s, size_t &pos, Address &addr);

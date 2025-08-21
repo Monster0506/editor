@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        if (!executor.executeCommandsc(command, lines)){
+        if (!executor.executeCommands(command, lines)){
             cout<<"bad command construction"<<endl;
             cout<<"?"<<endl;
             continue;

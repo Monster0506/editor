@@ -32,7 +32,7 @@ void helper_setUndoState(stack<pair<vector<string>, int>> &undo_stack, stack<pai
 }
 
 
-bool Executor::cmd_put_register(Address a1, 
+bool Executor::cmd_put_register(Command c,
         vector<string> &lines, 
         int &dot, 
         bool &modified, 
@@ -41,7 +41,7 @@ bool Executor::cmd_put_register(Address a1,
     if (registers.find(reg) == registers.end() || registers[reg].empty())
         return false;
 
-    int insert_idx = (a1.number == 0 ? dot : a1.number);
+    int insert_idx = (c.a1.number == 0 ? dot : c.a1.number);
     if (after) insert_idx++; // put after
 
     if (insert_idx < 0 || insert_idx > (int)lines.size())
@@ -62,15 +62,15 @@ bool Executor::cmd_put_register(Address a1,
  * Registers: "_" for last copied text, '"' default for unnamed register
  * Marks: "!" for start of copy block, "@" for end of copy block
  */
-bool Executor::cmd_yank(Address a1, Address a2, 
+bool Executor::cmd_yank(Command c,
         vector<string> &lines, 
         char reg) {
     if (lines.empty()) return false;
-    if (a1.number < 1 || a2.number < a1.number || a2.number > (int)lines.size())
+    if (c.a1.number < 1 || c.a2.number < c.a1.number || c.a2.number > (int)lines.size())
         return false;
 
-    int begin = a1.number - 1;
-    int end = a2.number - 1;
+    int begin = c.a1.number - 1;
+    int end = c.a2.number - 1;
     marks["!"] = begin;
     marks["@"] = end;
     registers['_'].clear();
@@ -79,7 +79,7 @@ bool Executor::cmd_yank(Address a1, Address a2,
         registers[reg].push_back(lines[i]);
         registers['_'].push_back(lines[i]);
     }
-    dot = a2.number;
+    dot = c.a2.number;
     return true;
 }
 
@@ -117,57 +117,18 @@ bool Executor::cmd_delete(Command c, vector<string> &lines, int &dot, bool &modi
     modified = true;
     return true;
 }
-/**
- * Delete lines between a1 and a2 (inclusive).
- */
-bool Executor::cmd_delete(
-        Address a1,
-        Address a2,
-        vector<string> &lines,
-        int &dot,
-        bool &modified
-        ) {
-    if (lines.empty()) return false;
-
-
-    if (a1.number < 1 || a2.number < a1.number || a2.number > (int)lines.size())
-        return false;
-    helper_UpdateMarksAfterDeletion(a1.number, a2.number, marks);
-
-
-    registers['_'].clear();
-    registers['"'].clear();
-    for (int i = a1.number -1; i<a2.number; i++){
-        registers['_'].push_back(lines[i]);
-        registers['"'].push_back(lines[i]);
-    }
-
-
-    auto start = lines.begin() + (a1.number - 1);
-    auto end = lines.begin() + a2.number;
-
-    lines.erase(start, end);
-
-    if (a1.number <= (int)lines.size())
-        dot = a1.number;
-    else
-        dot = lines.empty() ? 0 : (int)lines.size();
-
-    modified = true;
-    return true;
-}
 
 /**
  * Append lines after address a1.
  */
 bool Executor::cmd_append(
-        Address a1,
+        Command c,
         vector<string> &lines,
         int &dot,
         bool &modified
         ) {
     string input;
-    int insert_idx = (a1.number == 0 ? 0 : a1.number);
+    int insert_idx = (c.a1.number == 0 ? 0 : c.a1.number);
 
     if (insert_idx < 0 || insert_idx > (int)lines.size())
         return false;
@@ -189,21 +150,20 @@ bool Executor::cmd_append(
  * Insert before address a1.
  */
 bool Executor::cmd_insert(
-        Address a1,
+        Command c,
         vector<string> &lines,
         int &dot,
         bool &modified
         ) {
-    a1.number = max(0, a1.number -1);
-    return cmd_append(a1, lines, dot, modified);
+    c.a1.number = max(0, c.a1.number -1);
+    return cmd_append(c, lines, dot, modified);
 }
 
 /**
  * Write lines between a1 and a2 to file.
  */
 bool Executor::cmd_write(
-        Address a1,
-        Address a2,
+        Command c,
         vector<string> &lines,
         string &params,
         string &filename,
@@ -225,10 +185,10 @@ bool Executor::cmd_write(
     if (!file.is_open())
         return false;
 
-    if (a1.number > a2.number) return false;
+    if (c.a1.number > c.a2.number) return false;
 
-    int begin = (a1.type == AddressType::NONE ? 1 : a1.number);
-    int end = (a2.type == AddressType::NONE ? (int)lines.size() : a2.number);
+    int begin = (c.a1.type == AddressType::NONE ? 1 : c.a1.number);
+    int end = (c.a2.type == AddressType::NONE ? (int)lines.size() : c.a2.number);
 
     begin = max(1, begin);
     end = min(end, (int)lines.size());
@@ -247,19 +207,18 @@ bool Executor::cmd_write(
  * Print lines between a1 and a2.
  */
 bool Executor::cmd_put(
-        Address a1,
-        Address a2,
+        Command c,
         vector<string> &lines,
         int &dot
         ) {
     if (lines.empty()) return true;
 
-    if (a1.number == 0 && a2.number == 0) {
+    if (c.a1.number == 0 && c.a2.number == 0) {
         if (dot >= 1 && dot <= (int)lines.size())
             cout << lines.at(dot - 1) << endl;
     } else {
-        int begin = max(0, a1.number - 1);
-        int end = (a2.number == 0 ? (int)lines.size() : a2.number) - 1;
+        int begin = max(0, c.a1.number - 1);
+        int end = (c.a2.number == 0 ? (int)lines.size() : c.a2.number) - 1;
         end = min(end, (int)lines.size() - 1);
 
         for (int i = begin; i <= end && i < (int)lines.size(); i++)
@@ -307,19 +266,18 @@ bool Executor::cmd_redo(vector<string>&lines){
  * Print lines with line numbers.
  */
 bool Executor::cmd_put_with_numbers(
-        Address a1,
-        Address a2,
+        Command c,
         vector<string> &lines,
         int &dot
         ) {
     if (lines.empty()) return true;
 
-    if (a1.number == 0 && a2.number == 0) {
+    if (c.a1.number == 0 && c.a2.number == 0) {
         if (dot >= 1 && dot <= (int)lines.size())
             cout << dot << "\t" << lines.at(dot - 1) << endl;
     } else {
-        int begin = max(0, a1.number - 1);
-        int end = (a2.number == 0 ? (int)lines.size() : a2.number) - 1;
+        int begin = max(0, c.a1.number - 1);
+        int end = (c.a2.number == 0 ? (int)lines.size() : c.a2.number) - 1;
         end = min(end, (int)lines.size() - 1);
 
         for (int i = begin; i <= end && i < (int)lines.size(); i++)
@@ -387,7 +345,7 @@ bool Executor::executeCommands(
         c.a2.number = c.a1.number;
 
     if (debug)
-        Parser::displayCommand(c.a1, c.a2, c.command, c.params);
+        Parser::displayCommand(c);
 
     switch (c.command) {
         case '#':
@@ -399,25 +357,25 @@ bool Executor::executeCommands(
 
         case 'a':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_append(c.a1, lines, dot, modified);
+            return cmd_append(c, lines, dot, modified);
 
         case 'i':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_insert(c.a1, lines, dot, modified);
+            return cmd_insert(c, lines, dot, modified);
 
         case 'c':
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
-            return cmd_delete(c.a1, c.a2, lines, dot, modified) &&
-                cmd_insert(c.a1, lines, dot, modified);
+            return cmd_delete(c, lines, dot, modified) &&
+                cmd_insert(c, lines, dot, modified);
 
         case 'w':
-            return cmd_write(c.a1, c.a2, lines, c.params, filename, modified);
+            return cmd_write(c, lines, c.params, filename, modified);
 
         case 'o':
-            return cmd_put(c.a1, c.a2, lines, dot);
+            return cmd_put(c, lines, dot);
 
         case 'n':
-            return cmd_put_with_numbers(c.a1, c.a2, lines, dot);
+            return cmd_put_with_numbers(c, lines, dot);
 
         case 'u':
             return cmd_undo(lines);
@@ -450,20 +408,20 @@ bool Executor::executeCommands(
 
         case 'y':
             if (!c.params.empty() && isalpha(c.params[0]))
-                return cmd_yank(c.a1, c.a2, lines, (unsigned char)c.params[0]);
-            return cmd_yank(c.a1, c.a2, lines);
+                return cmd_yank(c, lines, (unsigned char)c.params[0]);
+            return cmd_yank(c, lines);
 
         case 'p': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
             if (c.params.empty())
-                return cmd_put_register(c.a1, lines, dot, modified, '"', true);
-            return cmd_put_register(c.a1, lines, dot, modified, (unsigned char)c.params[0], true);
+                return cmd_put_register(c, lines, dot, modified, '"', true);
+            return cmd_put_register(c, lines, dot, modified, (unsigned char)c.params[0], true);
 
         case 'P': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
             if (c.params.empty())
-                return cmd_put_register(c.a1, lines, dot, modified, '"', false);
-            return cmd_put_register(c.a1, lines, dot, modified, (unsigned char)c.params[0], false);
+                return cmd_put_register(c, lines, dot, modified, '"', false);
+            return cmd_put_register(c, lines, dot, modified, (unsigned char)c.params[0], false);
 
         case '\'':
             if (!c.params.empty()){
