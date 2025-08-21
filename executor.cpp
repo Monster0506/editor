@@ -7,9 +7,23 @@
 #include <iostream>
 #include <algorithm>
 
-
-
 using namespace std;
+
+
+void helper_UpdateMarksAfterDeletion(int start, int end, unordered_map<string, int> &marks){
+    for (auto it = marks.begin(); it != marks.end();){
+        if (it->second >= start && it->second <= end) {
+            it = marks.erase(it);
+            // removing this mark means we have to check if we are at the end already!
+        }
+        else{
+            it->second -= (end - start+1);
+        }
+        // that's what this is for
+        if (it == marks.end()) break;
+        ++it;
+    }
+}
 
 
 void helper_setUndoState(stack<pair<vector<string>, int>> &undo_stack, stack<pair<vector<string>, int>> &redo_stack, vector<string>lines, int dot){
@@ -42,6 +56,12 @@ bool Executor::cmd_put_register(Address a1,
     return true;
 }
 
+/**
+ * Copies lines between a1 and a2 (inclusive) and stores in a register.
+ * If no register is provided, stores in the unnamed register 
+ * Registers: "_" for last copied text, '"' default for unnamed register
+ * Marks: "!" for start of copy block, "@" for end of copy block
+ */
 bool Executor::cmd_yank(Address a1, Address a2, 
         vector<string> &lines, 
         char reg) {
@@ -51,41 +71,17 @@ bool Executor::cmd_yank(Address a1, Address a2,
 
     int begin = a1.number - 1;
     int end = a2.number - 1;
-
-    for (auto &t:marks){
-        cout<<t.first<<endl;
-    }
+    marks["!"] = begin;
+    marks["@"] = end;
+    registers['_'].clear();
     registers[reg].clear();
     for (int i = begin; i <= end; i++) {
         registers[reg].push_back(lines[i]);
+        registers['_'].push_back(lines[i]);
     }
     dot = a2.number;
     return true;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /**
@@ -100,9 +96,18 @@ bool Executor::cmd_delete(
         ) {
     if (lines.empty()) return false;
 
+
     if (a1.number < 1 || a2.number < a1.number || a2.number > (int)lines.size())
         return false;
+    helper_UpdateMarksAfterDeletion(a1.number, a2.number, marks);
 
+
+    registers['_'].clear();
+    registers['"'].clear();
+    for (int i = a1.number -1; i<a2.number; i++){
+        registers['_'].push_back(lines[i]);
+        registers['"'].push_back(lines[i]);
+    }
 
 
     auto start = lines.begin() + (a1.number - 1);
@@ -312,7 +317,15 @@ bool Executor::executeCommands(
         vector<string> &lines,
         string &params
         ) {
-    if (c == '\0') c = 'n';
+    if (c == '\0')
+    {
+        if (a1.type == AddressType::MARK && a2.type==AddressType::NONE){
+            // Allow mark command in format '[char]
+            c='\''; 
+            params=a1.extra;
+        }
+        else c = 'n';
+    }
 
     if (dot == 0 && !lines.empty()) dot = 1;
 
@@ -404,23 +417,35 @@ bool Executor::executeCommands(
             break;
 
 
-        case 'y': // yank
+        case 'y':
             if (!params.empty() && isalpha(params[0]))
                 return cmd_yank(a1, a2, lines, (unsigned char)params[0]);
             return cmd_yank(a1, a2, lines);
 
-        case 'p': // put after
+        case 'p': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
             if (params.empty())
                 return cmd_put_register(a1, lines, dot, modified, '"', true);
             return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], true);
-            
 
-        case 'P': // put before
+        case 'P': 
             helper_setUndoState(undo_stack, redo_stack, lines, dot);
             if (params.empty())
                 return cmd_put_register(a1, lines, dot, modified, '"', false);
             return cmd_put_register(a1, lines, dot, modified, (unsigned char)params[0], false);
+
+        case '\'':
+            if (!params.empty()){
+                string mark(1, params[0]);
+                if (marks.find(mark) != marks.end()){
+                    dot = marks.at(mark);
+                    return true;
+                }
+            }
+            return false;
+
+
+
         default:
             return false;
     }

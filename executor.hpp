@@ -5,6 +5,10 @@
 #include <unordered_map>
 using namespace std;
 
+
+
+void helper_UpdateMarksAfterDeletion(int start, int end, unordered_map<string, int> &marks);
+void helper_setUndoState(stack<pair<vector<string>, int>> &undo_stack, stack<pair<vector<string>, int>> &redo_stack, vector<string>lines, int dot);
 class Executor{
 
     public: 
@@ -12,6 +16,7 @@ class Executor{
         bool modified = false;
         int dot=1; 
         string filename;
+        // TODO: make these just cmd histories so we don't have to deal with stupid stuff
         stack< pair<vector<string>, int>> undo_stack;
         stack< pair<vector<string>, int>> redo_stack;
         // TODO: Store default registers, i.e., '"', "_", etc
@@ -48,3 +53,6 @@ class Executor{
                 vector<string> &lines, 
                 char reg = '"');
 };
+
+
+
