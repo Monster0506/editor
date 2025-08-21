@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "address.hpp"
+#include "command.hpp"
 #include "parser.hpp"
 #include "executor.hpp"
 using namespace std;
@@ -42,6 +43,10 @@ int main(int argc, char **argv) {
             cout<<"?"<<endl;
             continue;
         }
+        Command command = Command::build_command(c, a1, a2,  params, executor.dot, lines.size(), executor.marks);
+        cout<<"sucessfully built command! "<<endl<<command<<endl;
+
+
 
         if (!executor.executeCommands(a1, a2, c, lines, params)){
             cout<<"bad command"<<endl;
