@@ -2,7 +2,7 @@ CXX := g++
 CXXFLAGS := -Wall -Wextra -Wpedantic -std=c++17
 
 # Source files
-SRCS := editor.cpp address.cpp parser.cpp executor.cpp command.cpp
+SRCS := editor.cpp address.cpp parser.cpp executor.cpp command.cpp regex.cpp
 OBJS := $(SRCS:.cpp=.o)
 
 TEST_SRCS := test.cpp address.cpp parser.cpp command.cpp

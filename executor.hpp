@@ -14,7 +14,7 @@ void helper_setUndoState(stack<pair<vector<string>, int>> &undo_stack,
                          vector<string> lines, int dot);
 class Executor {
    public:
-    bool debug = true;
+    bool debug = false;
     bool modified = false;
     int dot = 1;
     string filename;

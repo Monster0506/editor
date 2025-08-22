@@ -11,7 +11,6 @@ Command Command::build_command(char cmd, Address a1_, Address a2_,
 
     if (cmd == '\0') {
         if (a1_.type == AddressType::MARK && a2_.type == AddressType::NONE) {
-            // Allow mark command in format '[char]
             cmd = '\'';
             params_ = a1_.extra;
         } else
@@ -20,6 +19,8 @@ Command Command::build_command(char cmd, Address a1_, Address a2_,
 
     if (dot == 0 && lines_size != 0) dot = 1;
 
+    if (a1_.type == AddressType::CURRENT) a1_.number = dot;
+    if (a2_.type == AddressType::CURRENT) a2_.number = dot;
     if (a1_.type == AddressType::MARK) {
         if (marks.find(a1_.extra) == marks.end()) throw(1);
         a1_.number = marks[a1_.extra];
@@ -29,8 +30,6 @@ Command Command::build_command(char cmd, Address a1_, Address a2_,
         a2_.number = marks[a2_.extra];
     }
 
-    if (a1_.type == AddressType::CURRENT) a1_.number = dot;
-    if (a2_.type == AddressType::CURRENT) a2_.number = dot;
     if (a1_.type == AddressType::LAST) a1_.number = lines_size;
     if (a2_.type == AddressType::LAST) a2_.number = lines_size;
     if (a1_.type == AddressType::RELATIVE) a1_.number += dot;

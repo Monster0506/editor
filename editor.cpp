@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
 
     ifstream file(filename);
 
+    // Executor executor = Executor();
     Executor executor = Executor(true);
     executor.filename = filename;
 
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
         }
 
         if (!executor.executeCommands(command, lines)) {
-            cout << "bad command construction" << endl;
+            cout << "bad command execution" << endl;
             cout << "?" << endl;
             continue;
         }

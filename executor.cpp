@@ -7,6 +7,7 @@
 #include "address.hpp"
 #include "executor.hpp"
 #include "parser.hpp"
+#include "regex.hpp"
 
 using namespace std;
 
@@ -266,44 +267,26 @@ bool aisNumericalAddress(Address a) {
  * Execute a command.
  */
 bool Executor::executeCommands(Command &c, vector<string> &lines) {
-    if (c.command == '\0') {
-        if (c.a1.type == AddressType::MARK && c.a2.type == AddressType::NONE) {
-            // Allow mark command in format '[char]
-            c.command = '\'';
-            c.params = c.a1.extra;
-        } else
-            c.command = 'n';
-    }
-
-    if (dot == 0 && !lines.empty()) dot = 1;
-
-    // Resolve addresses
-    if (c.a1.type == AddressType::CURRENT) c.a1.number = dot;
-    if (c.a2.type == AddressType::CURRENT) c.a2.number = dot;
-    if (c.a1.type == AddressType::LAST) c.a1.number = (int)lines.size();
-    if (c.a2.type == AddressType::LAST) c.a2.number = (int)lines.size();
-    if (c.a1.type == AddressType::RELATIVE) c.a1.number += dot;
-    if (c.a2.type == AddressType::RELATIVE) c.a2.number += dot;
-    if (c.a1.type == AddressType::MARK) {
-        if (marks.find(c.a1.extra) == marks.end()) return false;
-        c.a1.number = marks[c.a1.extra];
-    }
-    if (c.a2.type == AddressType::MARK) {
-        if (marks.find(c.a2.extra) == marks.end()) return false;
-        c.a2.number = marks[c.a2.extra];
-    }
-
-    if ((c.a1.type == AddressType::LAST && lines.empty()) ||
-        (c.a2.type == AddressType::LAST && lines.empty())) {
-        return false;
-    }
-
-    if (aisNumericalAddress(c.a1) &&
-        (c.a2.type == AddressType::NONE ||
-         (c.a2.type == AddressType::NUMBER && c.a2.number == 0)))
-        c.a2.number = c.a1.number;
-
     if (debug) Parser::displayCommand(c);
+
+    if (c.a1.type == AddressType::REGEX_FWD ||
+        c.a1.type == AddressType::REGEX_BACK) {
+        int matchLine =
+            RegexEngine::findMatch(c.a1.extra, lines, dot != 1 ? dot : 0,
+                                   c.a1.type == AddressType::REGEX_FWD);
+        if (matchLine == -1) return false;
+        c.a1.number = matchLine;
+        c.a1.type = AddressType::NUMBER;
+    }
+    if (c.a2.type == AddressType::REGEX_FWD ||
+        c.a2.type == AddressType::REGEX_BACK) {
+        int matchLine =
+            RegexEngine::findMatch(c.a2.extra, lines, dot != 1 ? dot : 0,
+                                   c.a2.type == AddressType::REGEX_FWD);
+        if (matchLine == -1) return false;
+        c.a2.number = matchLine;
+        c.a2.type = AddressType::NUMBER;
+    }
 
     switch (c.command) {
         case '#':

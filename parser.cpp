@@ -72,7 +72,6 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
             addr = Address();
             addr.type = AddressType::MARK;
             addr.extra = mark;
-
             pos++;
             return true;
         }
