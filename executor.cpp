@@ -271,18 +271,16 @@ bool Executor::executeCommands(Command &c, vector<string> &lines) {
 
     if (c.a1.type == AddressType::REGEX_FWD ||
         c.a1.type == AddressType::REGEX_BACK) {
-        int matchLine =
-            RegexEngine::findMatch(c.a1.extra, lines, dot != 1 ? dot : 0,
-                                   c.a1.type == AddressType::REGEX_FWD);
+        int matchLine = RegexEngine::findMatch(
+            c.a1.extra, lines, dot, c.a1.type == AddressType::REGEX_FWD);
         if (matchLine == -1) return false;
         c.a1.number = matchLine;
         c.a1.type = AddressType::NUMBER;
     }
     if (c.a2.type == AddressType::REGEX_FWD ||
         c.a2.type == AddressType::REGEX_BACK) {
-        int matchLine =
-            RegexEngine::findMatch(c.a2.extra, lines, dot != 1 ? dot : 0,
-                                   c.a2.type == AddressType::REGEX_FWD);
+        int matchLine = RegexEngine::findMatch(
+            c.a2.extra, lines, dot, c.a2.type == AddressType::REGEX_FWD);
         if (matchLine == -1) return false;
         c.a2.number = matchLine;
         c.a2.type = AddressType::NUMBER;

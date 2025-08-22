@@ -1,6 +1,5 @@
 #pragma once
 #include <iostream>
-using namespace std;
 enum class AddressType {
     NONE,
     LAST,
@@ -17,12 +16,12 @@ class Address {
    public:
     AddressType type;
     int number;
-    string extra;  // regex or mark name
+    std::string extra;  // regex or mark name
 
     Address() : type(AddressType::NONE), number(0) {}
     Address(AddressType type_) : type(type_), number(0) {}
     Address(AddressType type_, int number_) : type(type_), number(number_) {}
-    Address(AddressType type_, const string &extra_)
+    Address(AddressType type_, const std::string &extra_)
         : type(type_), number(0), extra(extra_) {}
 };
 

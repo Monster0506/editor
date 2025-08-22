@@ -1,6 +1,7 @@
 #include "parser.hpp"
 
-bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
+bool Parser::parseSingleAddress(const std::string &s, size_t &pos,
+                                Address &addr) {
     while (pos < s.size() && isspace((unsigned char)s[pos])) pos++;
     if (pos >= s.size()) return false;
 
@@ -44,7 +45,7 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
     } else if (ch == '/' || ch == '?') {  // regex search
         char delim = ch;
         pos++;
-        string re;
+        std::string re;
         while (pos < s.size() && s[pos] != delim) {
             if (s[pos] == '\\' && pos + 1 < s.size()) {
                 re.push_back(s[pos]);
@@ -68,7 +69,7 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
     } else if (ch == '\'') {  // mark
         pos++;
         if (pos < s.size()) {
-            string mark(1, s[pos]);
+            std::string mark(1, s[pos]);
             addr = Address();
             addr.type = AddressType::MARK;
             addr.extra = mark;
@@ -80,8 +81,8 @@ bool Parser::parseSingleAddress(const string &s, size_t &pos, Address &addr) {
     return false;
 }
 
-bool Parser::parseCommand(const string &cmd, Address &addr1, Address &addr2,
-                          char &c, string &params) {
+bool Parser::parseCommand(const std::string &cmd, Address &addr1,
+                          Address &addr2, char &c, std::string &params) {
     size_t pos = 0;
     addr1 = Address();
     addr2 = Address();
